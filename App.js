@@ -1,7 +1,7 @@
 // ------------------------------------------------------------ НАСТРОЙКА API
 
 // ⚠️ Единственное место, которое нужно менять при новом деплое Apps Script.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxPdiLjNCsuxwmkDJHK9CPPJ8MQbPVxhMjF4aifokPBU9WntUky_Z-GgiSvgP3t9lis/exec';
+var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
 
 function apiGet(action, params) {
   var url = EXEC_URL + '?action=' + encodeURIComponent(action);
@@ -17,6 +17,28 @@ function apiPost(action, username, payload) {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action: action, username: username, payload: payload || {} })
   }).then(function (r) { return r.json(); });
+}
+
+// ------------------------------------------------------------ ИНДИКАЦИЯ ЗАГРУЗКИ
+//
+// Оборачивает любое действие, инициированное кнопкой: сразу блокирует её
+// и меняет текст, чтобы пользователь понимал, что нажатие принято и не
+// давил повторно, пока идёт обращение к серверу (обычно несколько секунд).
+function withButtonLoading(btn, loadingText, fn) {
+  if (!btn) return fn();
+  var original = btn.textContent;
+  btn.disabled = true;
+  btn.classList.add('btn-loading');
+  btn.textContent = loadingText || 'Обработка…';
+  function restore() {
+    btn.disabled = false;
+    btn.classList.remove('btn-loading');
+    btn.textContent = original;
+  }
+  var result = fn();
+  if (result && typeof result.finally === 'function') result.finally(restore);
+  else restore();
+  return result;
 }
 
 // ------------------------------------------------------------ ИНИЦИАЛИЗАЦИЯ
@@ -146,12 +168,51 @@ function renderPlayerDashboard(d) {
   if (!d.ok) { showError('Ошибка загрузки данных.'); return; }
   lastDashboard = d;
 
+  var onboarding = document.getElementById('onboarding-card');
+  var main = document.getElementById('player-main');
+  var bankruptCard = document.getElementById('bankrupt-card');
+  var employedCard = document.getElementById('employed-card');
+  var leftCard = document.getElementById('left-card');
+
   document.getElementById('p-restaurant').textContent = d.player.restaurant;
+
+  if (d.lifecycle === 'left') {
+    [onboarding, main, bankruptCard, employedCard].forEach(function (el) { el.classList.add('hidden'); });
+    leftCard.classList.remove('hidden');
+    document.getElementById('p-round').textContent = '';
+    document.getElementById('p-cash-thb').textContent = '';
+    document.getElementById('p-cash-usd').textContent = '';
+    stopCountdown();
+    return;
+  }
+  if (d.lifecycle === 'bankrupt') {
+    [onboarding, main, employedCard, leftCard].forEach(function (el) { el.classList.add('hidden'); });
+    bankruptCard.classList.remove('hidden');
+    document.getElementById('p-cash-thb').textContent = fmtMoney(d.player.cash);
+    document.getElementById('p-cash-usd').textContent = '';
+    document.getElementById('bankrupt-details').textContent =
+      'В найме — зарплата ' + fmtMoney(d.employment.salary) + '/мес, для открытия нового дела нужно накопить ' +
+      fmtMoney(d.employment.threshold) + '.';
+    stopCountdown();
+    return;
+  }
+  if (d.lifecycle === 'employed') {
+    [onboarding, main, bankruptCard, leftCard].forEach(function (el) { el.classList.add('hidden'); });
+    employedCard.classList.remove('hidden');
+    document.getElementById('p-cash-thb').textContent = '';
+    document.getElementById('p-cash-usd').textContent = '';
+    document.getElementById('emp-savings').textContent = fmtMoney(d.employment.savings);
+    document.getElementById('emp-salary').textContent = fmtMoney(d.employment.salary) + '/мес';
+    document.getElementById('emp-threshold').textContent = fmtMoney(d.employment.threshold);
+    document.getElementById('reopen-btn').classList.toggle('hidden', !d.employment.canReopen);
+    stopCountdown();
+    return;
+  }
+  [bankruptCard, employedCard, leftCard].forEach(function (el) { el.classList.add('hidden'); });
+
   document.getElementById('p-round').textContent = 'Месяц ' + d.game.roundNumber + ' из ' + d.game.totalRounds +
     (d.game.gameFinished ? ' · игра завершена' : (d.game.roundStatus === 'open' ? ' · приём решений открыт' : ' · идёт обсуждение'));
 
-  var onboarding = document.getElementById('onboarding-card');
-  var main = document.getElementById('player-main');
   if (d.needsOnboarding) {
     onboarding.classList.remove('hidden');
     main.classList.add('hidden');
@@ -185,7 +246,23 @@ function renderPlayerDashboard(d) {
   renderBank(d.loan);
   renderLastResult(d.lastResult);
   renderDecisionForm(d);
+  renderTransferOptions(d.otherPlayers);
   startCountdown(d.game.roundStatus === 'open' ? d.game.deadline : null, ['p-timer']);
+}
+
+function renderTransferOptions(otherPlayers) {
+  var select = document.getElementById('transfer-to');
+  var current = select.value;
+  select.innerHTML = '';
+  (otherPlayers || []).forEach(function (p) {
+    var opt = document.createElement('option');
+    opt.value = p.username;
+    opt.textContent = p.restaurant;
+    select.appendChild(opt);
+  });
+  if (current && Array.from(select.options).some(function (o) { return o.value === current; })) {
+    select.value = current;
+  }
 }
 
 function renderMarketingBadges(mk) {
@@ -269,18 +346,22 @@ function renderDecisionForm(d) {
 
 document.getElementById('onboarding-form').addEventListener('submit', function (e) {
   e.preventDefault();
+  var btn = e.target.querySelector('button[type=submit]');
   var name = document.getElementById('ob-name').value;
   var restaurant = document.getElementById('ob-restaurant').value;
-  apiPost('setProfile', myUsername, { displayName: name, restaurantName: restaurant })
-    .then(function (res) {
-      if (res.ok) loadPlayerDashboard();
-      else alert('Заполните оба поля.');
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+  withButtonLoading(btn, 'Сохраняем…', function () {
+    return apiPost('setProfile', myUsername, { displayName: name, restaurantName: restaurant })
+      .then(function (res) {
+        if (res.ok) loadPlayerDashboard();
+        else alert('Заполните оба поля.');
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 });
 
 document.getElementById('decision-form').addEventListener('submit', function (e) {
   e.preventDefault();
+  var btn = e.target.querySelector('button[type=submit]');
   var decision = {
     price: document.getElementById('f-price').value,
     seoSpend: document.getElementById('f-seo').value,
@@ -292,45 +373,98 @@ document.getElementById('decision-form').addEventListener('submit', function (e)
     shiftsDelta: document.getElementById('f-shifts').value,
     qualityInvest: document.getElementById('f-quality').value
   };
-  apiPost('submitDecision', myUsername, decision)
-    .then(function (res) {
-      if (res.ok) loadPlayerDashboard();
-      else alert('Не удалось отправить решение: ' + res.error);
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+  withButtonLoading(btn, 'Отправляем…', function () {
+    return apiPost('submitDecision', myUsername, decision)
+      .then(function (res) {
+        if (res.ok) loadPlayerDashboard();
+        else alert('Не удалось отправить решение: ' + res.error);
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 });
 
-function requestLoan() {
+function requestLoan(btn) {
   var amount = document.getElementById('loan-amount').value;
   if (!amount || Number(amount) <= 0) { alert('Укажите сумму кредита.'); return; }
-  apiPost('requestLoan', myUsername, { amount: amount })
-    .then(function (res) {
-      if (res.ok) {
-        alert('Получено: ' + fmtMoney(res.received));
-        document.getElementById('loan-amount').value = '';
-        loadPlayerDashboard();
-      } else {
-        var messages = { no_tier: 'Кредит пока недоступен — банк ещё не открыл лимит.', invalid_amount: 'Некорректная сумма.', limit_reached: 'Лимит уже полностью выбран.' };
-        alert(messages[res.error] || ('Кредит недоступен: ' + res.error));
-      }
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+  withButtonLoading(btn, 'Оформляем…', function () {
+    return apiPost('requestLoan', myUsername, { amount: amount })
+      .then(function (res) {
+        if (res.ok) {
+          alert('Получено: ' + fmtMoney(res.received));
+          document.getElementById('loan-amount').value = '';
+          loadPlayerDashboard();
+        } else {
+          var messages = { no_tier: 'Кредит пока недоступен — банк ещё не открыл лимит.', invalid_amount: 'Некорректная сумма.', limit_reached: 'Лимит уже полностью выбран.' };
+          alert(messages[res.error] || ('Кредит недоступен: ' + res.error));
+        }
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 }
 
-function repayLoan() {
+function repayLoan(btn) {
   var amount = document.getElementById('repay-amount').value;
   if (!amount || Number(amount) <= 0) { alert('Укажите сумму погашения.'); return; }
-  apiPost('repayLoan', myUsername, { amount: amount })
-    .then(function (res) {
-      if (res.ok) {
-        alert('Погашено: ' + fmtMoney(res.paid) + '. Остаток долга: ' + fmtMoney(res.remaining));
-        document.getElementById('repay-amount').value = '';
-        loadPlayerDashboard();
-      } else {
-        alert('Не удалось погасить: ' + res.error);
-      }
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+  withButtonLoading(btn, 'Погашаем…', function () {
+    return apiPost('repayLoan', myUsername, { amount: amount })
+      .then(function (res) {
+        if (res.ok) {
+          alert('Погашено: ' + fmtMoney(res.paid) + '. Остаток долга: ' + fmtMoney(res.remaining));
+          document.getElementById('repay-amount').value = '';
+          loadPlayerDashboard();
+        } else {
+          alert('Не удалось погасить: ' + res.error);
+        }
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
+}
+
+function transferMoney(btn) {
+  var toUsername = document.getElementById('transfer-to').value;
+  var amount = document.getElementById('transfer-amount').value;
+  if (!toUsername) { alert('Выберите получателя.'); return; }
+  if (!amount || Number(amount) <= 0) { alert('Укажите сумму перевода.'); return; }
+  withButtonLoading(btn, 'Переводим…', function () {
+    return apiPost('transferMoney', myUsername, { toUsername: toUsername, amount: amount })
+      .then(function (res) {
+        if (res.ok) {
+          alert('Переведено ' + fmtMoney(res.sent) + ' → ' + res.toRestaurant);
+          document.getElementById('transfer-amount').value = '';
+          loadPlayerDashboard();
+        } else {
+          var messages = {
+            invalid_amount: 'Некорректная сумма или недостаточно средств.',
+            recipient_not_found: 'Получатель не найден.', recipient_gone: 'Этот игрок уже вышел из игры.',
+            self_transfer: 'Нельзя перевести самому себе.'
+          };
+          alert(messages[res.error] || ('Не удалось перевести: ' + res.error));
+        }
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
+}
+
+function chooseBankruptcyPath(choice, btn) {
+  withButtonLoading(btn, 'Обрабатываем…', function () {
+    return apiPost('chooseBankruptcyPath', myUsername, { choice: choice })
+      .then(function (res) {
+        if (res.ok) loadPlayerDashboard();
+        else alert('Не удалось выполнить: ' + res.error);
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
+}
+
+function reopenBusiness(btn) {
+  withButtonLoading(btn, 'Открываем дело…', function () {
+    return apiPost('reopenBusiness', myUsername, {})
+      .then(function (res) {
+        if (res.ok) { alert('Новое дело открыто! Стартовый капитал: ' + fmtMoney(res.cash)); loadPlayerDashboard(); }
+        else alert('Не удалось открыть дело: ' + res.error);
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 }
 
 function dismissBankBanner() {
@@ -345,6 +479,10 @@ function loadAdminMonitor() {
     .then(renderAdminMonitor)
     .catch(function (err) { showError(err.message); });
 }
+
+var STATUS_LABELS = {
+  active: 'активен', bankrupt: 'банкрот (выбирает)', employed: 'в найме', left: 'вышел из игры'
+};
 
 function renderAdminMonitor(d) {
   if (!d.ok) { showError('Ошибка загрузки данных.'); return; }
@@ -361,6 +499,7 @@ function renderAdminMonitor(d) {
       '<td>' + p.brand + '</td>' +
       '<td>' + p.capacity.toLocaleString('ru-RU') + '</td>' +
       '<td>' + p.loanTier + '</td>' +
+      '<td>' + (STATUS_LABELS[p.status] || p.status) + '</td>' +
       '<td class="' + (p.submitted ? 'ok' : 'pending') + '">' + (p.submitted ? '✓' : '…') + '</td>' +
       '<td class="' + (p.joined ? 'ok' : 'pending') + '">' + (p.joined ? '✓' : '…') + '</td>';
     body.appendChild(tr);
@@ -369,27 +508,31 @@ function renderAdminMonitor(d) {
   startCountdown(d.round.status === 'open' ? d.round.deadline : null, ['a-timer']);
 }
 
-function adminOpenRound() {
-  apiPost('adminOpenRound', myUsername, {})
-    .then(function (res) {
-      if (res.ok) { loadAdminMonitor(); return; }
-      var messages = {
-        already_open: 'Месяц уже открыт.',
-        game_finished: 'Игра уже завершена (достигнут лимит месяцев). Чтобы начать заново — «Опасная зона» ниже.'
-      };
-      alert(messages[res.error] || ('Не удалось открыть месяц: ' + res.error));
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+function adminOpenRound(btn) {
+  withButtonLoading(btn, 'Открываем…', function () {
+    return apiPost('adminOpenRound', myUsername, {})
+      .then(function (res) {
+        if (res.ok) { loadAdminMonitor(); return; }
+        var messages = {
+          already_open: 'Месяц уже открыт.',
+          game_finished: 'Игра уже завершена (достигнут лимит месяцев). Чтобы начать заново — «Опасная зона» ниже.'
+        };
+        alert(messages[res.error] || ('Не удалось открыть месяц: ' + res.error));
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 }
 
-function adminCalculateRound() {
+function adminCalculateRound(btn) {
   if (!confirm('Рассчитать месяц? Приём решений будет закрыт.')) return;
-  apiPost('adminCalculateRound', myUsername, {})
-    .then(function (res) {
-      if (res.ok) { alert('Месяц рассчитан.'); loadAdminMonitor(); }
-      else alert('Не удалось рассчитать: ' + res.error);
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+  withButtonLoading(btn, 'Считаем…', function () {
+    return apiPost('adminCalculateRound', myUsername, {})
+      .then(function (res) {
+        if (res.ok) { alert('Месяц рассчитан.'); loadAdminMonitor(); }
+        else alert('Не удалось рассчитать: ' + res.error);
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 }
 
 // ------------------------------------------------------------ СБРОС ИГРЫ
@@ -405,21 +548,23 @@ function cancelResetConfirm() {
   document.getElementById('reset-confirm-input').value = '';
 }
 
-function confirmResetGame() {
+function confirmResetGame(btn) {
   var text = document.getElementById('reset-confirm-input').value;
   if (!text) { alert('Введите код игры (см. лист Config → GAME_CODE).'); return; }
-  apiPost('adminResetGame', myUsername, { confirmText: text })
-    .then(function (res) {
-      if (res.ok) {
-        alert('Игра сброшена. Можно начинать заново с месяца 1.');
-        cancelResetConfirm();
-        loadAdminMonitor();
-      } else {
-        var messages = { confirmation_mismatch: 'Код игры не совпадает — сброс отменён.' };
-        alert(messages[res.error] || ('Не удалось сбросить: ' + res.error));
-      }
-    })
-    .catch(function (err) { alert('Ошибка: ' + err.message); });
+  withButtonLoading(btn, 'Сбрасываем…', function () {
+    return apiPost('adminResetGame', myUsername, { confirmText: text })
+      .then(function (res) {
+        if (res.ok) {
+          alert('Игра сброшена. Можно начинать заново с месяца 1.');
+          cancelResetConfirm();
+          loadAdminMonitor();
+        } else {
+          var messages = { confirmation_mismatch: 'Код игры не совпадает — сброс отменён.' };
+          alert(messages[res.error] || ('Не удалось сбросить: ' + res.error));
+        }
+      })
+      .catch(function (err) { alert('Ошибка: ' + err.message); });
+  });
 }
 
 boot();

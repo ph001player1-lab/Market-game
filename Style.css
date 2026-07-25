@@ -167,6 +167,22 @@
   }
   .btn-secondary.small { padding: 6px 10px; font-size: 13px; }
 
+  button:disabled, .btn-loading {
+    opacity: 0.6; cursor: default;
+  }
+
+  .lifecycle-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .lifecycle-actions button { flex: 1; margin-top: 0; }
+
+  .card > label {
+    display: block; margin-bottom: 12px; font-size: 13px; color: var(--muted);
+  }
+  .card > label select {
+    display: block; width: 100%; margin-top: 5px;
+    background: #0d0f13; border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 10px; font-size: 15px;
+  }
+
   .admin-actions { display: flex; gap: 10px; }
   .admin-actions .btn-primary { flex: 1; }
 

@@ -45,6 +45,35 @@
       </form>
     </section>
 
+    <!-- ============================ БАНКРОТСТВО ============================ -->
+    <section id="bankrupt-card" class="card hidden">
+      <h3>Ваш бизнес обанкротился</h3>
+      <p class="muted">Касса ушла в минус — вести дела дальше в этом заведении нельзя. Выберите, что делать:</p>
+      <div class="lifecycle-actions">
+        <button class="btn-secondary" onclick="chooseBankruptcyPath('employ', this)">Пойти в найм</button>
+        <button class="btn-danger" onclick="chooseBankruptcyPath('end', this)">Закончить участие в игре</button>
+      </div>
+      <p class="muted" id="bankrupt-details" style="margin-top:12px;"></p>
+    </section>
+
+    <!-- ============================ НАЁМ ПОСЛЕ БАНКРОТСТВА ============================ -->
+    <section id="employed-card" class="card hidden">
+      <h3>Вы работаете по найму</h3>
+      <table class="pl-table">
+        <tr><td>Накоплено</td><td id="emp-savings">—</td></tr>
+        <tr><td>Зарплата</td><td id="emp-salary">—</td></tr>
+        <tr><td>Нужно для открытия дела</td><td id="emp-threshold">—</td></tr>
+      </table>
+      <p class="muted">Зарплата начисляется автоматически каждый закрытый месяц — решений принимать не нужно.</p>
+      <button class="btn-primary hidden" id="reopen-btn" onclick="reopenBusiness(this)">Открыть новое дело</button>
+    </section>
+
+    <!-- ============================ ВЫШЕЛ ИЗ ИГРЫ ============================ -->
+    <section id="left-card" class="card hidden">
+      <h3>Вы завершили участие в этой игре</h3>
+      <p class="muted">Спасибо за игру! Можете наблюдать за остальными на общем табло.</p>
+    </section>
+
     <div id="player-main">
 
     <div id="bank-banner" class="bank-banner hidden" onclick="dismissBankBanner()"></div>
@@ -188,13 +217,26 @@
       <div id="loan-request-block" class="hidden">
         <div class="repay-block">
           <input type="number" id="loan-amount" placeholder="Сумма кредита, ฿" step="1000">
-          <button class="btn-secondary" onclick="requestLoan()">Взять кредит</button>
+          <button class="btn-secondary" onclick="requestLoan(this)">Взять кредит</button>
         </div>
       </div>
 
       <div class="repay-block">
         <input type="number" id="repay-amount" placeholder="Сумма досрочного погашения, ฿" step="1000">
-        <button class="btn-secondary" onclick="repayLoan()">Погасить досрочно</button>
+        <button class="btn-secondary" onclick="repayLoan(this)">Погасить досрочно</button>
+      </div>
+    </section>
+
+    <!-- ============================ ПЕРЕВОД ДЕНЕГ ============================ -->
+    <section class="card">
+      <h3>Перевести деньги другому игроку</h3>
+      <p class="muted">В пределах вашей текущей кассы. Полезно для сговоров, помощи союзнику или выкупа доли.</p>
+      <label>Получатель
+        <select id="transfer-to"></select>
+      </label>
+      <div class="repay-block">
+        <input type="number" id="transfer-amount" placeholder="Сумма, ฿" step="1000">
+        <button class="btn-secondary" onclick="transferMoney(this)">Перевести</button>
       </div>
     </section>
 
@@ -215,8 +257,8 @@
 
     <section class="card">
       <div class="admin-actions">
-        <button class="btn-primary" onclick="adminOpenRound()">Открыть ввод решений</button>
-        <button class="btn-primary" onclick="adminCalculateRound()">Рассчитать месяц</button>
+        <button class="btn-primary" onclick="adminOpenRound(this)">Открыть ввод решений</button>
+        <button class="btn-primary" onclick="adminCalculateRound(this)">Рассчитать месяц</button>
       </div>
     </section>
 
@@ -224,7 +266,7 @@
       <h3>Игроки</h3>
       <table class="monitor-table" id="admin-monitor-table">
         <thead>
-          <tr><th>Заведение</th><th>Касса</th><th>Бренд</th><th>Ёмкость</th><th>Банк</th><th>Ход</th><th>Подкл.</th></tr>
+          <tr><th>Заведение</th><th>Касса</th><th>Бренд</th><th>Ёмкость</th><th>Банк</th><th>Статус</th><th>Ход</th><th>Подкл.</th></tr>
         </thead>
         <tbody id="admin-monitor-body"></tbody>
       </table>
@@ -241,7 +283,7 @@
         <p class="muted">Чтобы подтвердить, наберите код текущей игры (лист Config → GAME_CODE):</p>
         <input type="text" id="reset-confirm-input" placeholder="Код игры">
         <div class="reset-confirm-actions">
-          <button class="btn-danger" onclick="confirmResetGame()">Подтвердить сброс</button>
+          <button class="btn-danger" onclick="confirmResetGame(this)">Подтвердить сброс</button>
           <button class="btn-secondary" onclick="cancelResetConfirm()">Отмена</button>
         </div>
       </div>
