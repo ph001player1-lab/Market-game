@@ -1,7 +1,7 @@
 // ------------------------------------------------------------ НАСТРОЙКА API
 
 // ⚠️ Единственное место, которое нужно менять при новом деплое Apps Script.
-var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
+var EXEC_URL = 'https://script.google.com/macros/s/AKfycbwRC9btihxs0Dcw_YXG_btuF0IIEcOmsyranE24DNTwAEWiPAK1rYAAF4qqaDxLJN4/exec';
 
 // Раньше при не-JSON ответе (HTML-страница ошибки от Google) сообщение
 // об ошибке было криптичным ("Unexpected token '<'..."), не показывающим,
