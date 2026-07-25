@@ -31,7 +31,9 @@
 ## 2. GitHub Pages (фронтенд)
 
 1. Новый **публичный** репозиторий на GitHub.
-2. В корень — три файла: `Index.html`, `Style.css`, `App.js`.
+2. В корень — три файла: **`index.html`** (обязательно строчными буквами —
+   GitHub Pages ищет ровно так, `Index.html` с большой буквы отдаст 404),
+   `Style.css`, `App.js`.
 3. Откройте `App.js`, в самом начале — константа:
    ```js
    var EXEC_URL = 'https://script.google.com/macros/s/.../exec';
