@@ -1,5 +1,5 @@
 // ⚠️ Та же ссылка, что и в App.js. Меняется в двух местах при новом деплое.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbyq5nY1jOpS27PadmN9KEL7dV13mNFgHwQCm_PYNksji1sSJXZ_gacXLwzSFdqBvtEX/exec';
+var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
 
 var METRIC_LABELS = {
   profit: 'Прибыль, ฿',
@@ -21,8 +21,22 @@ var tabloDeadlineMs = null;
 
 var DEFAULT_EMPTY_TEXT = 'Пока нет данных — табло обновится, как только будет рассчитан первый месяц.';
 
+function parseJsonResponse(response) {
+  return response.text().then(function (text) {
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      var snippet = text.slice(0, 300).replace(/\s+/g, ' ').trim();
+      throw new Error('сервер вернул не JSON (код ' + response.status + '): ' + snippet);
+    }
+  });
+}
+
 function apiGet(action) {
-  return fetch(EXEC_URL + '?action=' + encodeURIComponent(action)).then(function (r) { return r.json(); });
+  if (!EXEC_URL || EXEC_URL.indexOf('ВСТАВЬТЕ') !== -1) {
+    return Promise.reject(new Error('EXEC_URL не задан — вставьте ссылку на ваш деплой Apps Script в tablo.js.'));
+  }
+  return fetch(EXEC_URL + '?action=' + encodeURIComponent(action)).then(parseJsonResponse);
 }
 
 function showTabloMessage(text) {

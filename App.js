@@ -1,14 +1,33 @@
 // ------------------------------------------------------------ НАСТРОЙКА API
 
 // ⚠️ Единственное место, которое нужно менять при новом деплое Apps Script.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbyq5nY1jOpS27PadmN9KEL7dV13mNFgHwQCm_PYNksji1sSJXZ_gacXLwzSFdqBvtEX/exec';
+var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
+
+// Раньше при не-JSON ответе (HTML-страница ошибки от Google) сообщение
+// об ошибке было криптичным ("Unexpected token '<'..."), не показывающим,
+// что реально пришло. Теперь показываем начало настоящего ответа и код
+// статуса — это единственный способ отличить "устаревший деплой",
+// "требуется авторизация", "квота исчерпана" и т.п. друг от друга.
+function parseJsonResponse(response) {
+  return response.text().then(function (text) {
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      var snippet = text.slice(0, 300).replace(/\s+/g, ' ').trim();
+      throw new Error('сервер вернул не JSON (код ' + response.status + '): ' + snippet);
+    }
+  });
+}
 
 function apiGet(action, params) {
+  if (!EXEC_URL || EXEC_URL.indexOf('ВСТАВЬТЕ') !== -1) {
+    return Promise.reject(new Error('EXEC_URL не задан — вставьте ссылку на ваш деплой Apps Script в App.js.'));
+  }
   var url = EXEC_URL + '?action=' + encodeURIComponent(action);
   Object.keys(params || {}).forEach(function (k) {
     url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k]);
   });
-  return fetch(url).then(function (r) { return r.json(); });
+  return fetch(url).then(parseJsonResponse);
 }
 
 // Несмотря на название (оставлено для минимальных правок во всех вызовах
@@ -19,13 +38,16 @@ function apiGet(action, params) {
 // особенность самого Apps Script. GET проходит по тому же редиректу без
 // проблем, поэтому и запись, и чтение идут через query-параметры.
 function apiPost(action, username, payload) {
+  if (!EXEC_URL || EXEC_URL.indexOf('ВСТАВЬТЕ') !== -1) {
+    return Promise.reject(new Error('EXEC_URL не задан — вставьте ссылку на ваш деплой Apps Script в App.js.'));
+  }
   var url = EXEC_URL + '?action=' + encodeURIComponent(action) + '&u=' + encodeURIComponent(username || '');
   Object.keys(payload || {}).forEach(function (k) {
     var v = payload[k];
     if (v && typeof v === 'object') v = JSON.stringify(v);
     url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v);
   });
-  return fetch(url).then(function (r) { return r.json(); });
+  return fetch(url).then(parseJsonResponse);
 }
 
 // ------------------------------------------------------------ ИНДИКАЦИЯ ЗАГРУЗКИ
