@@ -31,6 +31,23 @@
       </div>
     </header>
 
+    <section id="onboarding-card" class="card hidden">
+      <h3>Добро пожаловать!</h3>
+      <p class="muted">Укажите своё имя и название заведения — это увидят остальные игроки
+        и ведущий. После этого откроется полный кабинет.</p>
+      <form id="onboarding-form">
+        <label>Ваше имя
+          <input type="text" id="ob-name" required>
+        </label>
+        <label>Название заведения
+          <input type="text" id="ob-restaurant" required>
+        </label>
+        <button type="submit" class="btn-primary">Начать игру</button>
+      </form>
+    </section>
+
+    <div id="player-main">
+
     <div id="bank-banner" class="bank-banner hidden" onclick="dismissBankBanner()"></div>
 
     <section class="stats-row">
@@ -102,6 +119,8 @@
         по итогам месяца — считать ничего не нужно.</p>
       <div id="bank-actions"></div>
     </section>
+
+    </div><!-- /player-main -->
   </div>
 
   <!-- ============================ КАБИНЕТ АДМИНИСТРАТОРА ============================ -->
@@ -125,7 +144,7 @@
       <h3>Игроки</h3>
       <table class="monitor-table" id="admin-monitor-table">
         <thead>
-          <tr><th>Заведение</th><th>Касса</th><th>Бренд</th><th>Ёмкость</th><th>Банк</th><th>Ход</th></tr>
+          <tr><th>Заведение</th><th>Касса</th><th>Бренд</th><th>Ёмкость</th><th>Банк</th><th>Ход</th><th>Подкл.</th></tr>
         </thead>
         <tbody id="admin-monitor-body"></tbody>
       </table>

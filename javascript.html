@@ -70,6 +70,17 @@
     document.getElementById('p-restaurant').textContent = d.player.restaurant;
     document.getElementById('p-round').textContent = 'Месяц ' + d.game.roundNumber +
       (d.game.roundStatus === 'open' ? ' · приём решений открыт' : ' · идёт обсуждение');
+
+    var onboarding = document.getElementById('onboarding-card');
+    var main = document.getElementById('player-main');
+    if (d.needsOnboarding) {
+      onboarding.classList.remove('hidden');
+      main.classList.add('hidden');
+      return;
+    }
+    onboarding.classList.add('hidden');
+    main.classList.remove('hidden');
+
     document.getElementById('p-cash-thb').textContent = fmtMoney(d.player.cash);
     document.getElementById('p-cash-usd').textContent = fmtUsd(d.player.cash);
     document.getElementById('p-brand').textContent = d.player.brand;
@@ -138,6 +149,19 @@
     });
   }
 
+  document.getElementById('onboarding-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = document.getElementById('ob-name').value;
+    var restaurant = document.getElementById('ob-restaurant').value;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.ok) loadPlayerDashboard();
+        else alert('Заполните оба поля.');
+      })
+      .withFailureHandler(function (err) { alert('Ошибка: ' + err.message); })
+      .setProfile(myUsername, name, restaurant);
+  });
+
   document.getElementById('decision-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var decision = {
@@ -194,7 +218,8 @@
         '<td>' + p.brand + '</td>' +
         '<td>' + p.capacity.toLocaleString('ru-RU') + '</td>' +
         '<td>' + p.loanTier + '</td>' +
-        '<td class="' + (p.submitted ? 'ok' : 'pending') + '">' + (p.submitted ? '✓' : '…') + '</td>';
+        '<td class="' + (p.submitted ? 'ok' : 'pending') + '">' + (p.submitted ? '✓' : '…') + '</td>' +
+        '<td class="' + (p.joined ? 'ok' : 'pending') + '">' + (p.joined ? '✓' : '…') + '</td>';
       body.appendChild(tr);
     });
   }
