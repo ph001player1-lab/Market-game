@@ -1,0 +1,40 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; height: 100%;
+  background: #0a0c10; color: #eef0f3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+.tablo-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 24px 40px 8px;
+}
+.tablo-title { font-size: 32px; font-weight: 700; }
+.tablo-round { font-size: 22px; color: #8a8f99; }
+
+.tablo-tabs {
+  display: flex; gap: 12px; padding: 8px 40px 20px;
+}
+.tab-btn {
+  background: #171a21; border: 1px solid #262a33; color: #eef0f3;
+  border-radius: 12px; padding: 14px 22px; font-size: 18px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tab-btn.active {
+  background: #1b3a2a; border-color: #3ba55d; color: #bdf0cf;
+}
+
+.tablo-chart-wrap {
+  position: relative;
+  height: calc(100% - 160px);
+  padding: 0 40px 30px;
+}
+#tablo-chart { width: 100% !important; height: 100% !important; }
+
+.tablo-empty {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 24px; color: #8a8f99; text-align: center; max-width: 600px;
+}
+.hidden { display: none !important; }
