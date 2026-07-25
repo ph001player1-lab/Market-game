@@ -1,7 +1,7 @@
 // ------------------------------------------------------------ НАСТРОЙКА API
 
 // ⚠️ Единственное место, которое нужно менять при новом деплое Apps Script.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxO9WyZF8pGUY8R0drikuwoG-MQvAQOllR4nua-owntIy3ZXRJSU3v256QD7HbGps3L/exec';
+var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
 
 function apiGet(action, params) {
   var url = EXEC_URL + '?action=' + encodeURIComponent(action);
@@ -11,12 +11,21 @@ function apiGet(action, params) {
   return fetch(url).then(function (r) { return r.json(); });
 }
 
+// Несмотря на название (оставлено для минимальных правок во всех вызовах
+// ниже), это ТОЖЕ обычный GET, а не настоящий POST. Apps Script на POST
+// к /exec отвечает 302-редиректом на googleusercontent.com, и этот
+// редирект либо не принимает POST, либо fetch() при переходе по нему
+// превращает его в GET и теряет тело запроса — задокументированная
+// особенность самого Apps Script. GET проходит по тому же редиректу без
+// проблем, поэтому и запись, и чтение идут через query-параметры.
 function apiPost(action, username, payload) {
-  return fetch(EXEC_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify({ action: action, username: username, payload: payload || {} })
-  }).then(function (r) { return r.json(); });
+  var url = EXEC_URL + '?action=' + encodeURIComponent(action) + '&u=' + encodeURIComponent(username || '');
+  Object.keys(payload || {}).forEach(function (k) {
+    var v = payload[k];
+    if (v && typeof v === 'object') v = JSON.stringify(v);
+    url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(v);
+  });
+  return fetch(url).then(function (r) { return r.json(); });
 }
 
 // ------------------------------------------------------------ ИНДИКАЦИЯ ЗАГРУЗКИ
