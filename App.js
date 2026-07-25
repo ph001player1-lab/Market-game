@@ -1,7 +1,7 @@
 // ------------------------------------------------------------ НАСТРОЙКА API
 
 // ⚠️ Единственное место, которое нужно менять при новом деплое Apps Script.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbzIZTMSiRaYuU4ZRJa2uHV9Tek-tiS71KiuGMS2K_5ttwSLDNpBgssu2CSctBoZ4t8z/exec';
+var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxnz0nU7wQajSDGo7SYajrxPpaQXN9Sxztm_tewgYxFBdebIhfDrxYE9Qf6JmCG9Van/exec';
 
 function apiGet(action, params) {
   var url = EXEC_URL + '?action=' + encodeURIComponent(action);
