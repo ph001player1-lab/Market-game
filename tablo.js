@@ -16,20 +16,63 @@ var PALETTE = [
 var currentMetric = 'profit';
 var chart = null;
 var lastTimeline = null;
+var tabloCountdownInterval = null;
+var tabloDeadlineMs = null;
+
+var DEFAULT_EMPTY_TEXT = 'Пока нет данных — табло обновится, как только будет рассчитан первый месяц.';
 
 function apiGet(action) {
   return fetch(EXEC_URL + '?action=' + encodeURIComponent(action)).then(function (r) { return r.json(); });
 }
 
+function showTabloMessage(text) {
+  var empty = document.getElementById('tablo-empty');
+  var canvas = document.getElementById('tablo-chart');
+  empty.textContent = text;
+  empty.classList.remove('hidden');
+  canvas.classList.add('hidden');
+}
+
 function loadTimeline() {
   apiGet('timeline')
     .then(function (d) {
-      if (!d.ok) return;
+      if (!d.ok) {
+        // Раньше эта ветка молча ничего не делала — из-за этого при ошибке
+        // на сервере (например, если руками стёрли данные из Rounds) табло
+        // показывало пустой холст без единого объяснения. Теперь видно, в чём дело.
+        showTabloMessage('Ошибка на сервере: ' + (d.error || 'неизвестная ошибка') +
+          '. Проверьте Config → ADMIN_USERNAME и структуру листов (запустите setupSheets() ещё раз).');
+        return;
+      }
       lastTimeline = d;
-      document.getElementById('t-round').textContent = 'Месяц ' + d.roundNumber;
+      document.getElementById('t-round').textContent = 'Месяц ' + d.roundNumber +
+        (d.totalRounds ? ' из ' + d.totalRounds : '');
+      startTabloCountdown(d.roundStatus === 'open' ? d.deadline : null);
       renderChart();
     })
-    .catch(function () { /* тихо пробуем ещё раз на следующем тике */ });
+    .catch(function (err) {
+      showTabloMessage('Не удалось связаться с сервером: ' + err.message);
+    });
+}
+
+function startTabloCountdown(deadlineIso) {
+  if (tabloCountdownInterval) { clearInterval(tabloCountdownInterval); tabloCountdownInterval = null; }
+  var el = document.getElementById('t-timer');
+  if (!deadlineIso) { el.classList.add('hidden'); return; }
+
+  tabloDeadlineMs = new Date(deadlineIso).getTime();
+  tick();
+  tabloCountdownInterval = setInterval(tick, 1000);
+
+  function tick() {
+    var remaining = Math.max(0, Math.round((tabloDeadlineMs - Date.now()) / 1000));
+    var mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+    var ss = String(remaining % 60).padStart(2, '0');
+    el.textContent = mm + ':' + ss;
+    el.classList.remove('hidden');
+    el.classList.toggle('timer-urgent', remaining <= 30);
+    if (remaining <= 0) { clearInterval(tabloCountdownInterval); tabloCountdownInterval = null; }
+  }
 }
 
 function renderChart() {
@@ -39,6 +82,7 @@ function renderChart() {
 
   var hasData = lastTimeline.players.some(function (p) { return p.series.length > 0; });
   if (!hasData) {
+    empty.textContent = DEFAULT_EMPTY_TEXT;
     empty.classList.remove('hidden');
     canvas.classList.add('hidden');
     return;

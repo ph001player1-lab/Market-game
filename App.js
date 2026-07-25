@@ -81,6 +81,57 @@ function fmtSigned(m) {
   return sign + Math.abs(m.thb).toLocaleString('ru-RU') + ' ฿';
 }
 
+// ------------------------------------------------------------ ТАЙМЕР МЕСЯЦА
+
+var countdownInterval = null;
+var countdownDeadlineMs = null;
+var countdownFiredRefresh = false;
+
+function startCountdown(deadlineIso, elementIds) {
+  stopCountdown();
+  if (!deadlineIso) {
+    elementIds.forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+    return;
+  }
+  countdownDeadlineMs = new Date(deadlineIso).getTime();
+  countdownFiredRefresh = false;
+  tickCountdown(elementIds);
+  countdownInterval = setInterval(function () { tickCountdown(elementIds); }, 1000);
+}
+
+function stopCountdown() {
+  if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
+}
+
+function tickCountdown(elementIds) {
+  var remainingSec = Math.max(0, Math.round((countdownDeadlineMs - Date.now()) / 1000));
+  var mm = String(Math.floor(remainingSec / 60)).padStart(2, '0');
+  var ss = String(remainingSec % 60).padStart(2, '0');
+  var text = mm + ':' + ss;
+  var urgent = remainingSec <= 30;
+
+  elementIds.forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('hidden');
+    el.classList.toggle('timer-urgent', urgent);
+  });
+
+  // Как только время вышло — сразу подтягиваем свежее состояние, не дожидаясь
+  // обычного 8-секундного опроса. Сам расчёт месяца сервер сделает при этом
+  // же обращении (см. getCurrentRound_ в Code.gs), так что результат уже
+  // будет готов к отображению.
+  if (remainingSec <= 0 && !countdownFiredRefresh) {
+    countdownFiredRefresh = true;
+    stopCountdown();
+    if (myRole === 'admin') loadAdminMonitor(); else loadPlayerDashboard();
+  }
+}
+
 // ------------------------------------------------------------ ИГРОК: UI
 
 function loadPlayerDashboard() {
@@ -96,8 +147,8 @@ function renderPlayerDashboard(d) {
   lastDashboard = d;
 
   document.getElementById('p-restaurant').textContent = d.player.restaurant;
-  document.getElementById('p-round').textContent = 'Месяц ' + d.game.roundNumber +
-    (d.game.roundStatus === 'open' ? ' · приём решений открыт' : ' · идёт обсуждение');
+  document.getElementById('p-round').textContent = 'Месяц ' + d.game.roundNumber + ' из ' + d.game.totalRounds +
+    (d.game.gameFinished ? ' · игра завершена' : (d.game.roundStatus === 'open' ? ' · приём решений открыт' : ' · идёт обсуждение'));
 
   var onboarding = document.getElementById('onboarding-card');
   var main = document.getElementById('player-main');
@@ -134,6 +185,7 @@ function renderPlayerDashboard(d) {
   renderBank(d.loan);
   renderLastResult(d.lastResult);
   renderDecisionForm(d);
+  startCountdown(d.game.roundStatus === 'open' ? d.game.deadline : null, ['p-timer']);
 }
 
 function renderMarketingBadges(mk) {
@@ -211,8 +263,12 @@ function renderDecisionForm(d) {
   var closed = document.getElementById('decision-closed');
   form.classList.add('hidden'); waiting.classList.add('hidden'); closed.classList.add('hidden');
 
-  if (d.game.roundStatus !== 'open') {
+  if (d.game.gameFinished) {
     closed.classList.remove('hidden');
+    closed.querySelector('p').textContent = 'Игра завершена (' + d.game.totalRounds + ' мес.). Дождитесь новой игры от ведущего.';
+  } else if (d.game.roundStatus !== 'open') {
+    closed.classList.remove('hidden');
+    closed.querySelector('p').textContent = 'Приём решений сейчас закрыт. Обсуждайте стратегию — форма откроется, когда ведущий начнёт месяц.';
   } else if (d.myDecisionSubmitted) {
     waiting.classList.remove('hidden');
   } else {
@@ -295,8 +351,8 @@ function loadAdminMonitor() {
 
 function renderAdminMonitor(d) {
   if (!d.ok) { showError('Ошибка загрузки данных.'); return; }
-  document.getElementById('a-round').textContent = 'Месяц ' + d.round.number +
-    ' · ' + (d.round.status === 'open' ? 'приём решений открыт' : 'закрыт');
+  document.getElementById('a-round').textContent = 'Месяц ' + d.round.number + ' из ' + d.round.totalRounds +
+    (d.round.gameFinished ? ' · игра завершена' : ' · ' + (d.round.status === 'open' ? 'приём решений открыт' : 'закрыт'));
 
   var body = document.getElementById('admin-monitor-body');
   body.innerHTML = '';
@@ -312,12 +368,19 @@ function renderAdminMonitor(d) {
       '<td class="' + (p.joined ? 'ok' : 'pending') + '">' + (p.joined ? '✓' : '…') + '</td>';
     body.appendChild(tr);
   });
+
+  startCountdown(d.round.status === 'open' ? d.round.deadline : null, ['a-timer']);
 }
 
 function adminOpenRound() {
   apiPost('adminOpenRound', myUsername, {})
     .then(function (res) {
-      if (res.ok) loadAdminMonitor(); else alert('Не удалось открыть месяц: ' + res.error);
+      if (res.ok) { loadAdminMonitor(); return; }
+      var messages = {
+        already_open: 'Месяц уже открыт.',
+        game_finished: 'Игра уже завершена (достигнут лимит месяцев). Чтобы начать заново — «Опасная зона» ниже.'
+      };
+      alert(messages[res.error] || ('Не удалось открыть месяц: ' + res.error));
     })
     .catch(function (err) { alert('Ошибка: ' + err.message); });
 }
@@ -328,6 +391,36 @@ function adminCalculateRound() {
     .then(function (res) {
       if (res.ok) { alert('Месяц рассчитан.'); loadAdminMonitor(); }
       else alert('Не удалось рассчитать: ' + res.error);
+    })
+    .catch(function (err) { alert('Ошибка: ' + err.message); });
+}
+
+// ------------------------------------------------------------ СБРОС ИГРЫ
+
+function revealResetConfirm() {
+  document.getElementById('reset-confirm-block').classList.remove('hidden');
+  document.getElementById('reset-reveal-btn').classList.add('hidden');
+}
+
+function cancelResetConfirm() {
+  document.getElementById('reset-confirm-block').classList.add('hidden');
+  document.getElementById('reset-reveal-btn').classList.remove('hidden');
+  document.getElementById('reset-confirm-input').value = '';
+}
+
+function confirmResetGame() {
+  var text = document.getElementById('reset-confirm-input').value;
+  if (!text) { alert('Введите код игры (см. лист Config → GAME_CODE).'); return; }
+  apiPost('adminResetGame', myUsername, { confirmText: text })
+    .then(function (res) {
+      if (res.ok) {
+        alert('Игра сброшена. Можно начинать заново с месяца 1.');
+        cancelResetConfirm();
+        loadAdminMonitor();
+      } else {
+        var messages = { confirmation_mismatch: 'Код игры не совпадает — сброс отменён.' };
+        alert(messages[res.error] || ('Не удалось сбросить: ' + res.error));
+      }
     })
     .catch(function (err) { alert('Ошибка: ' + err.message); });
 }

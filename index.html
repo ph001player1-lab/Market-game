@@ -32,6 +32,8 @@
       </div>
     </header>
 
+    <div id="p-timer" class="round-timer hidden">05:00</div>
+
     <section id="onboarding-card" class="card hidden">
       <h3>Добро пожаловать!</h3>
       <p class="muted">Укажите своё имя и название заведения — это увидят остальные игроки
@@ -203,6 +205,8 @@
       <button class="btn-secondary small" onclick="loadAdminMonitor()">Обновить</button>
     </header>
 
+    <div id="a-timer" class="round-timer hidden">05:00</div>
+
     <section class="card">
       <div class="admin-actions">
         <button class="btn-primary" onclick="adminOpenRound()">Открыть ввод решений</button>
@@ -218,6 +222,23 @@
         </thead>
         <tbody id="admin-monitor-body"></tbody>
       </table>
+    </section>
+
+    <section class="card danger-zone">
+      <h3>Опасная зона</h3>
+      <p class="muted">Полностью очищает игроков, решения, историю месяцев и банковский журнал —
+        начинать месяц 1 с чистого листа. Настройки экономики в Config не затрагиваются.</p>
+
+      <button class="btn-danger" id="reset-reveal-btn" onclick="revealResetConfirm()">Начать игру заново</button>
+
+      <div id="reset-confirm-block" class="hidden">
+        <p class="muted">Чтобы подтвердить, наберите код текущей игры (лист Config → GAME_CODE):</p>
+        <input type="text" id="reset-confirm-input" placeholder="Код игры">
+        <div class="reset-confirm-actions">
+          <button class="btn-danger" onclick="confirmResetGame()">Подтвердить сброс</button>
+          <button class="btn-secondary" onclick="cancelResetConfirm()">Отмена</button>
+        </div>
+      </div>
     </section>
   </div>
 
