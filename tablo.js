@@ -1,5 +1,5 @@
 // ⚠️ Та же ссылка, что и в App.js. Меняется в двух местах при новом деплое.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxEH7ek4wNRNyIlJPeZG2XtF5Q11XY8JA4Sb0w7I105ddDQY4GhPcWxu0z8qzAma9EF/exec';
+var EXEC_URL = 'https://script.google.com/macros/s/AKfycbzIZTMSiRaYuU4ZRJa2uHV9Tek-tiS71KiuGMS2K_5ttwSLDNpBgssu2CSctBoZ4t8z/exec';
 
 var METRIC_LABELS = {
   profit: 'Прибыль, ฿',
@@ -79,6 +79,15 @@ function startTabloCountdown(deadlineIso) {
 function renderChart() {
   var empty = document.getElementById('tablo-empty');
   var canvas = document.getElementById('tablo-chart');
+  var mktTable = document.getElementById('tablo-marketing-table');
+
+  if (currentMetric === 'marketing') {
+    canvas.classList.add('hidden');
+    renderMarketingTable();
+    return;
+  }
+  mktTable.classList.add('hidden');
+
   if (!lastTimeline) return;
 
   if (typeof Chart === 'undefined') {
@@ -168,6 +177,45 @@ function renderTechInfo(info) {
     'Базовая ёмкость: <b>' + info.capacityBase.toLocaleString('ru-RU') + '</b>, шаг смены: <b>' + info.capacityStep.toLocaleString('ru-RU') + '</b><br>' +
     'Стартовый капитал: <b>' + info.startCapital.thb.toLocaleString('ru-RU') + ' ฿</b> · Ставка банка: <b>' + Math.round(info.loanRateAnnual * 100) + '%</b><br>' +
     'Раунд: <b>' + info.roundDurationMin + ' мин</b>, партия: <b>' + info.totalRounds + ' мес.</b>';
+}
+
+function renderMarketingTable() {
+  var wrap = document.getElementById('tablo-marketing-table');
+  var empty = document.getElementById('tablo-empty');
+
+  if (!lastTimeline || !lastTimeline.players.some(function (p) { return p.series.length > 0; })) {
+    empty.textContent = DEFAULT_EMPTY_TEXT;
+    empty.classList.remove('hidden');
+    wrap.classList.add('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  wrap.classList.remove('hidden');
+
+  // Собираем все месяцы, для каждого — строку по каждому игроку.
+  var roundsSet = new Set();
+  lastTimeline.players.forEach(function (p) { p.series.forEach(function (pt) { roundsSet.add(pt.round); }); });
+  var rounds = Array.from(roundsSet).sort(function (a, b) { return b - a; }); // новые месяцы сверху
+
+  var html = '';
+  rounds.forEach(function (round) {
+    html += '<div class="marketing-month-block">';
+    html += '<div class="marketing-month-title">Месяц ' + round + '</div>';
+    html += '<table class="marketing-table"><thead><tr>' +
+      '<th>Игрок</th><th class="num">Цена</th><th class="num">Бюджет на рекламу</th>' +
+      '<th>Стратегия</th><th class="num">Рекламный эффект</th></tr></thead><tbody>';
+    lastTimeline.players.forEach(function (p) {
+      var pt = p.series.find(function (s) { return s.round === round; });
+      if (!pt) return;
+      html += '<tr><td>' + p.restaurant + '</td>' +
+        '<td class="num">' + pt.price.toLocaleString('ru-RU') + ' ฿</td>' +
+        '<td class="num">' + pt.marketingBudget.toLocaleString('ru-RU') + ' ฿</td>' +
+        '<td>' + pt.marketingStrategy + '</td>' +
+        '<td class="num">' + pt.marketingEffect.toFixed(2) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  });
+  wrap.innerHTML = html;
 }
 
 document.querySelectorAll('.tab-btn').forEach(function (btn) {

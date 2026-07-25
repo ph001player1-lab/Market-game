@@ -1,7 +1,7 @@
 // ------------------------------------------------------------ НАСТРОЙКА API
 
 // ⚠️ Единственное место, которое нужно менять при новом деплое Apps Script.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxEH7ek4wNRNyIlJPeZG2XtF5Q11XY8JA4Sb0w7I105ddDQY4GhPcWxu0z8qzAma9EF/exec';
+var EXEC_URL = 'https://script.google.com/macros/s/AKfycbzIZTMSiRaYuU4ZRJa2uHV9Tek-tiS71KiuGMS2K_5ttwSLDNpBgssu2CSctBoZ4t8z/exec';
 
 function apiGet(action, params) {
   var url = EXEC_URL + '?action=' + encodeURIComponent(action);
@@ -206,20 +206,9 @@ function renderBank(loan) {
   document.getElementById('bank-rate').textContent = Math.round(loan.rateAnnual * 100) + '% годовых';
   document.getElementById('bank-payment').textContent = loan.balance.thb > 0 ? fmtMoney(loan.estimatedNextPayment) : '—';
   document.getElementById('bank-term').textContent = loan.termLeft || '—';
+  document.getElementById('bank-available').textContent = fmtMoney(loan.available);
 
-  var bankActions = document.getElementById('bank-actions');
-  bankActions.innerHTML = '';
-  [1, 2, 3].forEach(function (tier) {
-    if (tier <= loan.tier) {
-      var b = document.createElement('button');
-      b.className = 'btn-secondary';
-      b.style.marginRight = '8px';
-      b.style.marginBottom = '8px';
-      b.textContent = 'Взять кредит (уровень ' + tier + ', до ' + fmtMoney(loan.limits['tier' + tier]) + ')';
-      b.onclick = function () { requestLoan(tier); };
-      bankActions.appendChild(b);
-    }
-  });
+  document.getElementById('loan-request-block').classList.toggle('hidden', loan.tier < 1 || loan.available.thb <= 0);
 }
 
 function renderLastResult(r) {
@@ -311,11 +300,19 @@ document.getElementById('decision-form').addEventListener('submit', function (e)
     .catch(function (err) { alert('Ошибка: ' + err.message); });
 });
 
-function requestLoan(tier) {
-  apiPost('requestLoan', myUsername, { tier: tier })
+function requestLoan() {
+  var amount = document.getElementById('loan-amount').value;
+  if (!amount || Number(amount) <= 0) { alert('Укажите сумму кредита.'); return; }
+  apiPost('requestLoan', myUsername, { amount: amount })
     .then(function (res) {
-      if (res.ok) { alert('Получено: ' + fmtMoney(res.received)); loadPlayerDashboard(); }
-      else alert('Кредит недоступен: ' + res.error);
+      if (res.ok) {
+        alert('Получено: ' + fmtMoney(res.received));
+        document.getElementById('loan-amount').value = '';
+        loadPlayerDashboard();
+      } else {
+        var messages = { no_tier: 'Кредит пока недоступен — банк ещё не открыл лимит.', invalid_amount: 'Некорректная сумма.', limit_reached: 'Лимит уже полностью выбран.' };
+        alert(messages[res.error] || ('Кредит недоступен: ' + res.error));
+      }
     })
     .catch(function (err) { alert('Ошибка: ' + err.message); });
 }

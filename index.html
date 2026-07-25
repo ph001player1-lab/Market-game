@@ -181,10 +181,16 @@
         <tr><td>Ставка</td><td id="bank-rate">—</td></tr>
         <tr><td>Плановый платёж (тело + %)</td><td id="bank-payment">—</td></tr>
         <tr><td>Осталось платежей</td><td id="bank-term">—</td></tr>
+        <tr><td>Доступно к получению</td><td id="bank-available">—</td></tr>
       </table>
       <p class="muted">Кредитный лимит открывается автоматически по итогам месяца — считать ничего не нужно.</p>
 
-      <div id="bank-actions"></div>
+      <div id="loan-request-block" class="hidden">
+        <div class="repay-block">
+          <input type="number" id="loan-amount" placeholder="Сумма кредита, ฿" step="1000">
+          <button class="btn-secondary" onclick="requestLoan()">Взять кредит</button>
+        </div>
+      </div>
 
       <div class="repay-block">
         <input type="number" id="repay-amount" placeholder="Сумма досрочного погашения, ฿" step="1000">
