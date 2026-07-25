@@ -1,5 +1,5 @@
 // ⚠️ Та же ссылка, что и в App.js. Меняется в двух местах при новом деплое.
-var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxPdiLjNCsuxwmkDJHK9CPPJ8MQbPVxhMjF4aifokPBU9WntUky_Z-GgiSvgP3t9lis/exec';
+var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
 
 var METRIC_LABELS = {
   profit: 'Прибыль, ฿',
@@ -48,7 +48,6 @@ function loadTimeline() {
       document.getElementById('t-round').textContent = 'Месяц ' + d.roundNumber +
         (d.totalRounds ? ' из ' + d.totalRounds : '');
       startTabloCountdown(d.roundStatus === 'open' ? d.deadline : null);
-      renderTechInfo(d.techInfo);
       renderChart();
     })
     .catch(function (err) {
@@ -80,13 +79,22 @@ function renderChart() {
   var empty = document.getElementById('tablo-empty');
   var canvas = document.getElementById('tablo-chart');
   var mktTable = document.getElementById('tablo-marketing-table');
+  var techPage = document.getElementById('tablo-techinfo');
 
+  if (currentMetric === 'techinfo') {
+    canvas.classList.add('hidden');
+    mktTable.classList.add('hidden');
+    renderTechInfoPage();
+    return;
+  }
   if (currentMetric === 'marketing') {
     canvas.classList.add('hidden');
+    techPage.classList.add('hidden');
     renderMarketingTable();
     return;
   }
   mktTable.classList.add('hidden');
+  techPage.classList.add('hidden');
 
   if (!lastTimeline) return;
 
@@ -163,20 +171,38 @@ function renderChart() {
   }
 }
 
-function renderTechInfo(info) {
-  var el = document.getElementById('tablo-techinfo');
-  if (!info) { el.classList.add('hidden'); return; }
-  el.classList.remove('hidden');
-  el.innerHTML =
-    '<div class="techinfo-title">Технические данные (общие для всех)</div>' +
-    'Игроков: <b>' + info.playersCount + '</b><br>' +
-    'Всего клиентов на рынке в этом месяце: <b>' + (info.currentMarketTotal !== null ? info.currentMarketTotal.toLocaleString('ru-RU') : '—') + '</b><br>' +
-    'Референсная цена: <b>' + info.pRef.thb.toLocaleString('ru-RU') + ' ฿</b><br>' +
-    'Базовая себестоимость блюда: <b>' + info.cogsBase.thb.toLocaleString('ru-RU') + ' ฿</b> <span style="opacity:.7">(растёт с качеством)</span><br>' +
-    'Аренда: <b>' + info.rent.thb.toLocaleString('ru-RU') + ' ฿/мес</b> · ФОТ: <b>' + info.payroll.thb.toLocaleString('ru-RU') + ' ฿/мес</b><br>' +
-    'Базовая ёмкость: <b>' + info.capacityBase.toLocaleString('ru-RU') + '</b>, шаг смены: <b>' + info.capacityStep.toLocaleString('ru-RU') + '</b><br>' +
-    'Стартовый капитал: <b>' + info.startCapital.thb.toLocaleString('ru-RU') + ' ฿</b> · Ставка банка: <b>' + Math.round(info.loanRateAnnual * 100) + '%</b><br>' +
-    'Раунд: <b>' + info.roundDurationMin + ' мин</b>, партия: <b>' + info.totalRounds + ' мес.</b>';
+function renderTechInfoPage() {
+  var page = document.getElementById('tablo-techinfo');
+  var empty = document.getElementById('tablo-empty');
+  var info = lastTimeline && lastTimeline.techInfo;
+
+  if (!info) {
+    empty.textContent = DEFAULT_EMPTY_TEXT;
+    empty.classList.remove('hidden');
+    page.classList.add('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  page.classList.remove('hidden');
+
+  function item(label, value, small) {
+    return '<div class="techinfo-item"><div class="techinfo-label">' + label + '</div>' +
+      '<div class="techinfo-value">' + value + (small ? ' <small>' + small + '</small>' : '') + '</div></div>';
+  }
+
+  var html = '<div class="techinfo-title">Технические данные (общие для всех)</div><div class="techinfo-grid">';
+  html += item('Игроков', info.playersCount);
+  html += item('Всего клиентов на рынке в этом месяце', info.currentMarketTotal !== null ? info.currentMarketTotal.toLocaleString('ru-RU') : '—');
+  html += item('Референсная цена', info.pRef.thb.toLocaleString('ru-RU') + ' ฿');
+  html += item('Базовая себестоимость блюда', info.cogsBase.thb.toLocaleString('ru-RU') + ' ฿', 'растёт с качеством');
+  html += item('Аренда', info.rent.thb.toLocaleString('ru-RU') + ' ฿/мес');
+  html += item('ФОТ', info.payroll.thb.toLocaleString('ru-RU') + ' ฿/мес');
+  html += item('Базовая ёмкость', info.capacityBase.toLocaleString('ru-RU'), 'шаг смены: ' + info.capacityStep.toLocaleString('ru-RU'));
+  html += item('Стартовый капитал', info.startCapital.thb.toLocaleString('ru-RU') + ' ฿');
+  html += item('Ставка банка', Math.round(info.loanRateAnnual * 100) + '%');
+  html += item('Раунд / партия', info.roundDurationMin + ' мин', info.totalRounds + ' мес.');
+  html += '</div>';
+  page.innerHTML = html;
 }
 
 function renderMarketingTable() {
