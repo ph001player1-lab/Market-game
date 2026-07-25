@@ -48,6 +48,7 @@ function loadTimeline() {
       document.getElementById('t-round').textContent = 'Месяц ' + d.roundNumber +
         (d.totalRounds ? ' из ' + d.totalRounds : '');
       startTabloCountdown(d.roundStatus === 'open' ? d.deadline : null);
+      renderTechInfo(d.techInfo);
       renderChart();
     })
     .catch(function (err) {
@@ -79,6 +80,14 @@ function renderChart() {
   var empty = document.getElementById('tablo-empty');
   var canvas = document.getElementById('tablo-chart');
   if (!lastTimeline) return;
+
+  if (typeof Chart === 'undefined') {
+    // Отдельная, честная причина: библиотека графиков не загрузилась
+    // (например, CDN недоступен или версия не найдена) — это НЕ ошибка
+    // сервера и НЕ повод писать "не удалось связаться с сервером".
+    showTabloMessage('Не загрузилась библиотека графиков (Chart.js). Проверьте интернет-соединение на этом экране и обновите страницу.');
+    return;
+  }
 
   var hasData = lastTimeline.players.some(function (p) { return p.series.length > 0; });
   if (!hasData) {
@@ -116,29 +125,49 @@ function renderChart() {
 
   var ctx = canvas.getContext('2d');
   if (chart) chart.destroy();
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: { labels: labels, datasets: datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 400 },
-      plugins: {
-        legend: {
-          position: 'bottom',
-          labels: { color: '#eef0f3', font: { size: 16 }, boxWidth: 20 }
+  try {
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { color: '#eef0f3', font: { size: 16 }, boxWidth: 20 }
+          },
+          title: {
+            display: true, text: METRIC_LABELS[currentMetric],
+            color: '#eef0f3', font: { size: 22, weight: '600' }, padding: { bottom: 16 }
+          }
         },
-        title: {
-          display: true, text: METRIC_LABELS[currentMetric],
-          color: '#eef0f3', font: { size: 22, weight: '600' }, padding: { bottom: 16 }
+        scales: {
+          x: { ticks: { color: '#8a8f99', font: { size: 14 } }, grid: { color: '#262a33' } },
+          y: { ticks: { color: '#8a8f99', font: { size: 14 } }, grid: { color: '#262a33' } }
         }
-      },
-      scales: {
-        x: { ticks: { color: '#8a8f99', font: { size: 14 } }, grid: { color: '#262a33' } },
-        y: { ticks: { color: '#8a8f99', font: { size: 14 } }, grid: { color: '#262a33' } }
       }
-    }
-  });
+    });
+  } catch (err) {
+    showTabloMessage('Ошибка отрисовки графика: ' + err.message);
+  }
+}
+
+function renderTechInfo(info) {
+  var el = document.getElementById('tablo-techinfo');
+  if (!info) { el.classList.add('hidden'); return; }
+  el.classList.remove('hidden');
+  el.innerHTML =
+    '<div class="techinfo-title">Технические данные (общие для всех)</div>' +
+    'Игроков: <b>' + info.playersCount + '</b><br>' +
+    'Всего клиентов на рынке в этом месяце: <b>' + (info.currentMarketTotal !== null ? info.currentMarketTotal.toLocaleString('ru-RU') : '—') + '</b><br>' +
+    'Референсная цена: <b>' + info.pRef.thb.toLocaleString('ru-RU') + ' ฿</b><br>' +
+    'Базовая себестоимость блюда: <b>' + info.cogsBase.thb.toLocaleString('ru-RU') + ' ฿</b> <span style="opacity:.7">(растёт с качеством)</span><br>' +
+    'Аренда: <b>' + info.rent.thb.toLocaleString('ru-RU') + ' ฿/мес</b> · ФОТ: <b>' + info.payroll.thb.toLocaleString('ru-RU') + ' ฿/мес</b><br>' +
+    'Базовая ёмкость: <b>' + info.capacityBase.toLocaleString('ru-RU') + '</b>, шаг смены: <b>' + info.capacityStep.toLocaleString('ru-RU') + '</b><br>' +
+    'Стартовый капитал: <b>' + info.startCapital.thb.toLocaleString('ru-RU') + ' ฿</b> · Ставка банка: <b>' + Math.round(info.loanRateAnnual * 100) + '%</b><br>' +
+    'Раунд: <b>' + info.roundDurationMin + ' мин</b>, партия: <b>' + info.totalRounds + ' мес.</b>';
 }
 
 document.querySelectorAll('.tab-btn').forEach(function (btn) {
