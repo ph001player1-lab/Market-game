@@ -1,5 +1,5 @@
 // ⚠️ Та же ссылка, что и в App.js. Меняется в двух местах при новом деплое.
-var EXEC_URL = 'ВСТАВЬТЕ_СЮДА_ССЫЛКУ_НА_ВАШ_ДЕПЛОЙ/exec';
+var EXEC_URL = 'https://script.google.com/macros/s/AKfycbxO9WyZF8pGUY8R0drikuwoG-MQvAQOllR4nua-owntIy3ZXRJSU3v256QD7HbGps3L/exec';
 
 var METRIC_LABELS = {
   profit: 'Прибыль, ฿',
