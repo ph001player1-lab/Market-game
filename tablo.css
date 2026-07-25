@@ -1,0 +1,94 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; height: 100%;
+  background: #0a0c10; color: #eef0f3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+.tablo-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 24px 40px 8px;
+}
+.tablo-title { font-size: 32px; font-weight: 700; }
+.tablo-round { font-size: 22px; color: #8a8f99; }
+
+.tablo-timer {
+  font-size: 110px; font-weight: 800; text-align: center;
+  padding: 4px 40px 10px; color: #bdf0cf; letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums; line-height: 1;
+  transition: color 0.3s;
+}
+.tablo-timer.timer-urgent {
+  color: #ff5050;
+  animation: tablo-pulse 1s infinite;
+}
+@keyframes tablo-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.tablo-tabs {
+  display: flex; flex-wrap: wrap; gap: 10px; padding: 8px 40px 20px;
+}
+.tab-btn {
+  background: #171a21; border: 1px solid #262a33; color: #eef0f3;
+  border-radius: 12px; padding: 11px 16px; font-size: 15px; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.tab-btn.active {
+  background: #1b3a2a; border-color: #3ba55d; color: #bdf0cf;
+}
+
+.tablo-chart-wrap {
+  position: relative;
+  height: calc(100% - 160px);
+  padding: 0 40px 30px;
+}
+#tablo-chart { width: 100% !important; height: 100% !important; }
+
+.tablo-techinfo-page {
+  height: 100%; overflow-y: auto; padding-right: 8px;
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
+}
+.techinfo-title {
+  font-size: 22px; font-weight: 700; margin-bottom: 20px; color: #5b8def;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.techinfo-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px 48px;
+  width: 100%; max-width: 900px;
+}
+.techinfo-item {
+  background: #171a21; border: 1px solid #262a33; border-radius: 12px;
+  padding: 16px 20px;
+}
+.techinfo-label { font-size: 15px; color: #8a8f99; margin-bottom: 6px; }
+.techinfo-value { font-size: 26px; font-weight: 700; color: #eef0f3; }
+.techinfo-value small { font-size: 16px; font-weight: 400; color: #8a8f99; }
+
+.tablo-marketing-wrap {
+  height: 100%; overflow-y: auto; padding-right: 8px;
+}
+.marketing-month-block { margin-bottom: 28px; }
+.marketing-month-title {
+  font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #eef0f3;
+}
+.marketing-table {
+  width: 100%; border-collapse: collapse; font-size: 16px;
+}
+.marketing-table th, .marketing-table td {
+  padding: 10px 14px; text-align: left; border-bottom: 1px solid #262a33;
+}
+.marketing-table th {
+  color: #8a8f99; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 0.03em;
+}
+.marketing-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.marketing-table tr:hover td { background: rgba(91, 141, 239, 0.08); }
+
+.tablo-empty {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 24px; color: #8a8f99; text-align: center; max-width: 600px;
+}
+.hidden { display: none !important; }
